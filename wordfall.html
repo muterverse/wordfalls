@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Falling Text with Enter Button</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;  
+      height: 100%; 
+      background: #000; /* 배경색을 검정으로 */
+      font-family: sans-serif;
+      overflow: hidden;
+    }
+
+    .falling-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #000; /* 배경색을 검정으로 */
+      overflow: hidden;
+    }
+
+    .input-container {
+      position: absolute;
+      top: 50%; 
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #textInput {
+      width: 200px;
+      padding: 10px 0;
+      font-size: 16px;
+      text-align: center;
+      background: none; /* 배경 제거 */
+      color: #fff; /* 폰트 색상 흰색 */
+      border: none; /* 기존 테두리 제거 */
+      border-bottom: 2px solid #fff; /* 밑줄 추가 */
+      outline: none; /* 포커스 시 외곽선 제거 */
+    }
+
+    #textInput::placeholder {
+      color: #777; /* 플레이스홀더 색상 */
+    }
+
+    .enter-button {
+      width: 50px;
+      height: 36px;
+      background: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      color: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .falling-text {
+      position: absolute;
+      top: 0;
+      transform: translateX(-50%);
+      font-weight: bold;
+      color: #fff; /* 글자 색상을 흰색으로 */
+    }
+  </style>
+</head>
+<body>
+  <div class="falling-container">
+    <div class="input-container">
+      <input
+        type="text"
+        id="textInput"
+        placeholder="여기에 글자를 입력"
+      />
+      <button class="enter-button" id="enterButton">엔터</button>
+    </div>
+  </div>
+
+  <script>
+    const textInput = document.getElementById("textInput");
+    const enterButton = document.getElementById("enterButton");
+    const container = document.querySelector(".falling-container");
+    const fallingTexts = [];
+    const gravity = 1; // 중력 가속도
+    const bounce = 0.5; // 반발 계수
+    const threshold = 0.1; // 멈추는 속도 임계값
+
+    // 엔터 버튼 클릭 이벤트 추가
+    enterButton.addEventListener("click", () => {
+      const inputValue = textInput.value.trim();
+      if (inputValue !== "") {
+        createFallingText(inputValue);
+        textInput.value = ""; // 입력창 초기화
+      }
+    });
+
+    textInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        const inputValue = textInput.value.trim();
+        if (inputValue !== "") {
+          createFallingText(inputValue);
+          textInput.value = "";
+        }
+      }
+    });
+
+    function createFallingText(text) {
+      const fallingElement = document.createElement("span");
+      fallingElement.classList.add("falling-text");
+      fallingElement.textContent = text;
+
+      // 글자 크기를 랜덤으로 설정 (16px ~ 48px)
+      const fontSize = Math.random() * (48 - 16) + 16; // 16px ~ 48px 사이
+      fallingElement.style.fontSize = `${fontSize}px`;
+
+      // 랜덤 위치 설정 (화면 좌우 10% ~ 90% 범위)
+      fallingElement.style.left = Math.random() * 80 + 10 + "%";
+      fallingElement.style.top = "0px";
+      container.appendChild(fallingElement);
+
+      fallingTexts.push({
+        element: fallingElement,
+        x: parseFloat(fallingElement.style.left) / 100 * window.innerWidth,
+        y: 0,
+        vy: 0, // 초기 속도
+        fontSize: fontSize, // 글자 크기
+        bounceCount: 0, // 바운스 횟수
+        fixed: false // 고정 여부
+      });
+    }
+
+    function update() {
+      const containerHeight = window.innerHeight;
+
+      fallingTexts.forEach(item => {
+        if (item.fixed) return; // 고정된 글자는 무시
+
+        const { element } = item;
+        item.vy += gravity;
+        item.y += item.vy;
+
+        let hasCollision = false;
+
+        // 다른 글자와의 충돌 감지
+        fallingTexts.forEach(other => {
+          if (item === other || other.fixed === false) return;
+
+          const rect1 = item.element.getBoundingClientRect();
+          const rect2 = other.element.getBoundingClientRect();
+
+          if (
+            rect1.left < rect2.right &&
+            rect1.right > rect2.left &&
+            rect1.top < rect2.bottom &&
+            rect1.bottom > rect2.top
+          ) {
+            hasCollision = true;
+            item.y = other.y - rect1.height;
+
+            // 바운스 횟수 증가 및 속도 감소
+            item.vy *= -bounce;
+            item.bounceCount += 1;
+
+            // 속도나 바운스 횟수가 임계값에 도달하면 고정
+            if (Math.abs(item.vy) < threshold || item.bounceCount > 3) {
+              item.vy = 0;
+              item.fixed = true;
+            }
+          }
+        });
+
+        // 바닥 충돌 처리
+        if (item.y + element.offsetHeight > containerHeight) {
+          item.y = containerHeight - element.offsetHeight;
+
+          // 바운스 횟수 증가 및 속도 감소
+          item.vy *= -bounce;
+          item.bounceCount += 1;
+
+          // 속도나 바운스 횟수가 임계값에 도달하면 고정
+          if (Math.abs(item.vy) < threshold || item.bounceCount > 3) {
+            item.vy = 0;
+            item.fixed = true;
+          }
+        }
+
+        element.style.left = `${item.x}px`;
+        element.style.top = `${item.y}px`;
+      });
+
+      requestAnimationFrame(update);
+    }
+
+    update();
+  </script>
+</body>
+</html>
